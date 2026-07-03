@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Firebase対応タスク管理アプリ</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", sans-serif;
+      background: #0f0f0f;
+      color: #f5f5f5;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 40px auto;
+      padding: 24px;
+    }
+
+    h1 {
+      margin-bottom: 24px;
+      text-align: center;
+      color: #ffffff;
+    }
+
+    .card {
+      background: #1a1a1a;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      margin-bottom: 24px;
+      border: 1px solid #333;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr auto;
+      gap: 12px;
+      align-items: end;
+    }
+
+    label {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 6px;
+      font-weight: bold;
+      color: #e5e5e5;
+    }
+
+    input,
+    select,
+    textarea,
+    button {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #444;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    input,
+    select,
+    textarea {
+      background: #262626;
+      color: #f5f5f5;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 120px;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      font-weight: bold;
+    }
+
+    .add-btn { background: #2563eb; color: white; min-width: 120px; }
+    .login-btn { background: #ffffff; color: #111827; }
+    .logout-btn { background: #6b7280; color: #ffffff; }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid #333;
+      padding-bottom: 10px;
+    }
+
+    .tab-btn {
+      width: auto;
+      padding: 10px 16px;
+      background: #262626;
+      color: #ddd;
+      border: 1px solid #444;
+    }
+
+    .tab-btn.active {
+      background: #2563eb;
+      color: #fff;
+      border-color: #2563eb;
+    }
+
+    .task-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 12px;
+    }
+
+    .task-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 16px;
+      border: 1px solid #333;
+      border-radius: 10px;
+      background: #1f1f1f;
+    }
+
+    .task-item.clickable { cursor: pointer; }
+    .task-item.clickable:hover { background: #242424; }
+
+    .task-item.marked {
+      border: 2px solid #f59e0b;
+      background: #2a2112;
+    }
+
+    .task-item.completed {
+      opacity: 0.92;
+      background: #182127;
+    }
+
+    .task-item.completed .task-title {
+      text-decoration: line-through;
+      color: #b8c1cc;
+    }
+
+    .task-main { flex: 1; }
+
+    .task-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 8px;
+      word-break: break-word;
+      color: #ffffff;
+    }
+
+    .task-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 13px;
+      color: #cfcfcf;
+      margin-bottom: 8px;
+    }
+
+    .task-note-preview {
+      font-size: 13px;
+      color: #9ca3af;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: bold;
+      color: white;
+    }
+
+    .priority-high { background: #dc2626; }
+    .priority-middle { background: #d97706; }
+    .priority-low { background: #16a34a; }
+
+    .task-actions {
+      display: flex;
+      gap: 8px;
+      min-width: 220px;
+      align-self: flex-start;
+    }
+
+    .complete-btn { background: #16a34a; color: white; }
+    .restore-btn { background: #0891b2; color: white; }
+    .delete-btn { background: #ef4444; color: white; }
+
+    .empty-message {
+      text-align: center;
+      color: #aaa;
+      padding: 24px 0;
+    }
+
+    .note {
+      font-size: 13px;
+      color: #bbb;
+      margin-top: 10px;
+    }
+
+    .hidden { display: none; }
+
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .auth-box {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .status-text {
+      font-size: 14px;
+      color: #cbd5e1;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+    }
+
+    .modal-backdrop.show { display: flex; }
+
+    .modal {
+      width: 100%;
+      max-width: 700px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .modal h2 {
+      margin-top: 0;
+      margin-bottom: 16px;
+      font-size: 22px;
+    }
+
+    .modal-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 16px;
+    }
+
+    .secondary-btn {
+      width: auto;
+      background: #374151;
+      color: #fff;
+      padding: 10px 16px;
+    }
+
+    .primary-btn {
+      width: auto;
+      background: #2563eb;
+      color: #fff;
+      padding: 10px 16px;
+    }
+
+    @media (max-width: 768px) {
+      .form-grid,
+      .modal-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .task-item {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .task-actions { min-width: auto; }
+      .tabs { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header-row">
+      <h1>Firebase対応タスク管理アプリ</h1>
+      <div class="auth-box">
+        <span id="userStatus" class="status-text">未ログイン</span>
+        <button type="button" id="loginBtn" class="login-btn">Googleでログイン</button>
+        <button type="button" id="logoutBtn" class="logout-btn hidden">ログアウト</button>
+      </div>
+    </div>
+
+    <section class="card">
+      <form id="taskForm">
+        <div class="form-grid">
+          <div>
+            <label for="taskName">タスク名</label>
+            <input type="text" id="taskName" placeholder="例: 資料を作成する" required />
+          </div>
+
+          <div>
+            <label for="priority">重要度</label>
+            <select id="priority" required>
+              <option value="High">High</option>
+              <option value="Middle">Middle</option>
+              <option value="Low">Low</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="deadline">完了期限</label>
+            <input type="date" id="deadline" required />
+          </div>
+
+          <div>
+            <button type="submit" class="add-btn">追加</button>
+          </div>
+        </div>
+      </form>
+      <p class="note">※ Googleログイン後にタスクを共有保存できます。進行中 / アーカイブをタブで切り替えでき、タスクをクリックするとメモと完了日を編集できます。</p>
+    </section>
+
+    <section class="card">
+      <div class="tabs">
+        <button type="button" class="tab-btn active" data-tab="active">進行中</button>
+        <button type="button" class="tab-btn" data-tab="archive">アーカイブ</button>
+      </div>
+
+      <ul id="activeTaskList" class="task-list"></ul>
+      <p id="activeEmptyMessage" class="empty-message">進行中のタスクはありません。</p>
+
+      <ul id="archiveTaskList" class="task-list hidden"></ul>
+      <p id="archiveEmptyMessage" class="empty-message hidden">完了したタスクはありません。</p>
+    </section>
+  </div>
+
+  <div id="taskModalBackdrop" class="modal-backdrop">
+    <div class="modal">
+      <h2>タスク詳細</h2>
+      <div class="modal-grid">
+        <div>
+          <label for="modalTaskName">タスク名</label>
+          <input type="text" id="modalTaskName" />
+        </div>
+        <div>
+          <label for="modalPriority">重要度</label>
+          <select id="modalPriority">
+            <option value="High">High</option>
+            <option value="Middle">Middle</option>
+            <option value="Low">Low</option>
+          </select>
+        </div>
+        <div>
+          <label for="modalDeadline">完了期限</label>
+          <input type="date" id="modalDeadline" />
+        </div>
+        <div>
+          <label for="modalCompletedAt">完了日</label>
+          <input type="date" id="modalCompletedAt" />
+        </div>
+      </div>
+      <div style="margin-top: 12px;">
+        <label for="modalMemo">メモ</label>
+        <textarea id="modalMemo" placeholder="ここにメモを書けます"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="closeModalBtn" class="secondary-btn">閉じる</button>
+        <button type="button" id="saveModalBtn" class="primary-btn">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getAuth,
+      GoogleAuthProvider,
+      signInWithPopup,
+      signOut,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      updateDoc,
+      deleteDoc,
+      doc,
+      onSnapshot,
+      query,
+      orderBy,
+      serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+
+    const taskForm = document.getElementById("taskForm");
+    const taskNameInput = document.getElementById("taskName");
+    const priorityInput = document.getElementById("priority");
+    const deadlineInput = document.getElementById("deadline");
+
+    const activeTaskList = document.getElementById("activeTaskList");
+    const archiveTaskList = document.getElementById("archiveTaskList");
+    const activeEmptyMessage = document.getElementById("activeEmptyMessage");
+    const archiveEmptyMessage = document.getElementById("archiveEmptyMessage");
+    const tabButtons = document.querySelectorAll(".tab-btn");
+
+    const modalBackdrop = document.getElementById("taskModalBackdrop");
+    const modalTaskName = document.getElementById("modalTaskName");
+    const modalPriority = document.getElementById("modalPriority");
+    const modalDeadline = document.getElementById("modalDeadline");
+    const modalCompletedAt = document.getElementById("modalCompletedAt");
+    const modalMemo = document.getElementById("modalMemo");
+    const closeModalBtn = document.getElementById("closeModalBtn");
+    const saveModalBtn = document.getElementById("saveModalBtn");
+
+    const loginBtn = document.getElementById("loginBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const userStatus = document.getElementById("userStatus");
+
+    const priorityOrder = { High: 3, Middle: 2, Low: 1 };
+
+    let currentTab = "active";
+    let currentEditTaskId = null;
+    let tasks = [];
+    let currentUser = null;
+    let unsubscribeTasks = null;
+
+    loginBtn.addEventListener("click", async () => {
+      try {
+        await signInWithPopup(auth, provider);
+      } catch (error) {
+        alert("ログインに失敗しました。Firebase設定と承認済みドメインを確認してください。");
+        console.error(error);
+      }
+    });
+
+    logoutBtn.addEventListener("click", async () => {
+      await signOut(auth);
+    });
+
+    taskForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      if (!currentUser) {
+        alert("先にGoogleログインしてください。");
+        return;
+      }
+
+      const name = taskNameInput.value.trim();
+      const priority = priorityInput.value;
+      const deadline = deadlineInput.value;
+
+      if (!name || !priority || !deadline) {
+        alert("すべて入力してください。");
+        return;
+      }
+
+      await addDoc(collection(db, "users", currentUser.uid, "tasks"), {
+        name,
+        priority,
+        deadline,
+        completed: false,
+        completedAt: "",
+        memo: "",
+        createdAt: serverTimestamp()
+      });
+
+      taskForm.reset();
+      priorityInput.value = "High";
+    });
+
+    tabButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        currentTab = button.dataset.tab;
+        tabButtons.forEach((btn) => btn.classList.remove("active"));
+        button.classList.add("active");
+        toggleTabView();
+      });
+    });
+
+    closeModalBtn.addEventListener("click", closeModal);
+    saveModalBtn.addEventListener("click", saveModalChanges);
+
+    modalBackdrop.addEventListener("click", (event) => {
+      if (event.target === modalBackdrop) closeModal();
+    });
+
+    onAuthStateChanged(auth, (user) => {
+      currentUser = user;
+
+      if (unsubscribeTasks) {
+        unsubscribeTasks();
+        unsubscribeTasks = null;
+      }
+
+      if (user) {
+        userStatus.textContent = `${user.displayName} でログイン中`;
+        loginBtn.classList.add("hidden");
+        logoutBtn.classList.remove("hidden");
+        startTaskListener();
+      } else {
+        userStatus.textContent = "未ログイン";
+        loginBtn.classList.remove("hidden");
+        logoutBtn.classList.add("hidden");
+        tasks = [];
+        renderTasks();
+      }
+    });
+
+    function startTaskListener() {
+      const q = query(collection(db, "users", currentUser.uid, "tasks"), orderBy("createdAt", "desc"));
+
+      unsubscribeTasks = onSnapshot(q, (snapshot) => {
+        tasks = snapshot.docs.map((docItem) => ({
+          id: docItem.id,
+          ...docItem.data()
+        }));
+        renderTasks();
+      }, (error) => {
+        console.error(error);
+        alert("タスクの読み込みに失敗しました。Firestoreルールと設定を確認してください。");
+      });
+    }
+
+    function toggleTabView() {
+      const isActive = currentTab === "active";
+      activeTaskList.classList.toggle("hidden", !isActive);
+      activeEmptyMessage.classList.toggle("hidden", !isActive);
+      archiveTaskList.classList.toggle("hidden", isActive);
+      archiveEmptyMessage.classList.toggle("hidden", isActive);
+    }
+
+    function renderTasks() {
+      activeTaskList.innerHTML = "";
+      archiveTaskList.innerHTML = "";
+
+      const activeTasks = tasks.filter((task) => !task.completed).sort(sortTasks);
+      const archiveTasks = tasks.filter((task) => task.completed).sort(sortTasks);
+
+      activeEmptyMessage.style.display = activeTasks.length === 0 ? "block" : "none";
+      archiveEmptyMessage.style.display = archiveTasks.length === 0 ? "block" : "none";
+
+      activeTasks.forEach((task) => activeTaskList.appendChild(createTaskElement(task, false)));
+      archiveTasks.forEach((task) => archiveTaskList.appendChild(createTaskElement(task, true)));
+
+      toggleTabView();
+    }
+
+    function sortTasks(a, b) {
+      const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
+      if (priorityDiff !== 0) return priorityDiff;
+      return new Date(a.deadline) - new Date(b.deadline);
+    }
+
+    function createTaskElement(task, isArchive) {
+      const li = document.createElement("li");
+      li.className = "task-item clickable";
+
+      if (task.completed) li.classList.add("completed");
+      if (isWithinOneWeek(task.deadline) && !task.completed) li.classList.add("marked");
+
+      li.innerHTML = `
+        <div class="task-main">
+          <div class="task-title">${escapeHtml(task.name)}</div>
+          <div class="task-meta">
+            <span class="badge priority-${String(task.priority).toLowerCase()}">${task.priority}</span>
+            <span>期限: ${formatDate(task.deadline)}</span>
+            ${task.completedAt ? `<span>完了日: ${formatDate(task.completedAt)}</span>` : ""}
+            <span>${isWithinOneWeek(task.deadline) && !task.completed ? "期限が近いです" : ""}</span>
+          </div>
+          <div class="task-note-preview">${task.memo ? escapeHtml(task.memo) : "メモはありません"}</div>
+        </div>
+        <div class="task-actions">
+          ${isArchive
+            ? `<button type="button" class="restore-btn" data-action="restore">進行中に戻す</button>`
+            : `<button type="button" class="complete-btn" data-action="complete">完了</button>`}
+          <button type="button" class="delete-btn" data-action="delete">削除</button>
+        </div>
+      `;
+
+      li.addEventListener("click", (event) => {
+        if (event.target.closest("button")) return;
+        openModal(task.id);
+      });
+
+      const completeBtn = li.querySelector('[data-action="complete"]');
+      const restoreBtn = li.querySelector('[data-action="restore"]');
+      const deleteBtn = li.querySelector('[data-action="delete"]');
+
+      if (completeBtn) completeBtn.addEventListener("click", () => completeTask(task.id));
+      if (restoreBtn) restoreBtn.addEventListener("click", () => restoreTask(task.id));
+      deleteBtn.addEventListener("click", () => deleteTask(task.id));
+
+      return li;
+    }
+
+    async function completeTask(taskId) {
+      if (!currentUser) return;
+      const taskRef = doc(db, "users", currentUser.uid, "tasks", taskId);
+      await updateDoc(taskRef, {
+        completed: true,
+        completedAt: getTodayString()
+      });
+      currentTab = "archive";
+      tabButtons.forEach((btn) => btn.classList.toggle("active", btn.dataset.tab === currentTab));
+      toggleTabView();
+    }
+
+    async function restoreTask(taskId) {
+      if (!currentUser) return;
+      const taskRef = doc(db, "users", currentUser.uid, "tasks", taskId);
+      await updateDoc(taskRef, {
+        completed: false,
+        completedAt: ""
+      });
+      currentTab = "active";
+      tabButtons.forEach((btn) => btn.classList.toggle("active", btn.dataset.tab === currentTab));
+      toggleTabView();
+    }
+
+    async function deleteTask(taskId) {
+      if (!currentUser) return;
+      await deleteDoc(doc(db, "users", currentUser.uid, "tasks", taskId));
+    }
+
+    function openModal(taskId) {
+      const task = tasks.find((item) => item.id === taskId);
+      if (!task) return;
+
+      currentEditTaskId = taskId;
+      modalTaskName.value = task.name || "";
+      modalPriority.value = task.priority || "Low";
+      modalDeadline.value = task.deadline || "";
+      modalCompletedAt.value = task.completedAt || "";
+      modalCompletedAt.disabled = !task.completed;
+      modalMemo.value = task.memo || "";
+      modalBackdrop.classList.add("show");
+    }
+
+    function closeModal() {
+      currentEditTaskId = null;
+      modalBackdrop.classList.remove("show");
+    }
+
+    async function saveModalChanges() {
+      if (!currentUser || currentEditTaskId === null) return;
+
+      const name = modalTaskName.value.trim();
+      const priority = modalPriority.value;
+      const deadline = modalDeadline.value;
+      const memo = modalMemo.value;
+      const completedAt = modalCompletedAt.value;
+      const targetTask = tasks.find((task) => task.id === currentEditTaskId);
+
+      if (!name || !priority || !deadline || !targetTask) {
+        alert("タスク名・重要度・完了期限を入力してください。");
+        return;
+      }
+
+      await updateDoc(doc(db, "users", currentUser.uid, "tasks", currentEditTaskId), {
+        name,
+        priority,
+        deadline,
+        memo,
+        completedAt: targetTask.completed ? completedAt : ""
+      });
+
+      closeModal();
+    }
+
+    function isWithinOneWeek(deadline) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const dueDate = new Date(deadline);
+      dueDate.setHours(0, 0, 0, 0);
+
+      const diffTime = dueDate - today;
+      const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+      return diffDays >= 0 && diffDays <= 7;
+    }
+
+    function formatDate(dateString) {
+      if (!dateString) return "";
+      const date = new Date(dateString);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}/${month}/${day}`;
+    }
+
+    function getTodayString() {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, "0");
+      const day = String(today.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    renderTasks();
+  </script>
+</body>
+</html>
